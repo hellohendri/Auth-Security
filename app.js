@@ -4,9 +4,10 @@ const bodyParser = require("body-parser");
 const ejs = require("ejs");
 const mongoose = require("mongoose");
 // const encrypt = require("mongoose-encryption");
-const md5 = require('md5');
+const bcrypt = require("bcrypt");
+const saltRounds = 10;
 
-require('dotenv').config()
+require("dotenv").config();
 
 const app = express();
 
@@ -46,19 +47,21 @@ app.post("/register", async (req, res) => {
     return res.status(400).send("Email and password are required");
   }
 
-  const newUser = new User({
-    email,
-    password: md5(password),
-  });
+  bcrypt.hash(password, saltRounds, async function (err, hash) {
+    const newUser = new User({
+      email,
+      password: hash,
+    });
 
-  try {
-    await newUser.save();
-    console.log("User created successfully");
-    res.render("secrets");
-  } catch (err) {
-    console.error(err);
-    res.status(500).send("Error creating user");
-  }
+    try {
+      await newUser.save();
+      console.log("User created successfully");
+      res.render("secrets");
+    } catch (err) {
+      console.error(err);
+      res.status(500).send("Error creating user");
+    }
+  });
 });
 
 app.post("/login", async (req, res) => {
@@ -70,11 +73,13 @@ app.post("/login", async (req, res) => {
     if (!user) {
       console.log("Invalid email or password!");
     } else {
-      if (user.password === md5(password)) {
-        res.render("secrets");
-      } else {
-        console.log("Invalid email or password!");
-      }
+      bcrypt.compare(password, user.password, function (err, result) {
+        if (result === true) {
+          res.render("secrets");
+        } else {
+          console.log("Invalid email or password!");
+        }
+      });
     }
   } catch (error) {
     console.error(error);
